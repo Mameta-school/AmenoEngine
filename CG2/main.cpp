@@ -121,6 +121,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ファイルを使って書き込み準備
 	std::fstream logStream(logFilePath);
 
+	// ループ開始
+	Log(logStream, "Start game loop");
+
 	MSG msg{};
 	// ウィンドウのxボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
@@ -129,13 +132,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+
 		else {
 			// ゲームの処理
 		}
 	}
 
-	// 出力ウィンドウへの文字出力
-	OutputDebugStringA("Hello,DirectX!\n");
+	// ループ終了
+	Log(logStream, "End game loop");
+
+	//// 出力ウィンドウへの文字出力
+	//OutputDebugStringA("Hello,DirectX!\n");
 
 	return 0;
 }
