@@ -357,6 +357,7 @@ MigrationBackup/
 DirectXGame/DirectXGame.exe
 DirectXGame/imgui.ini
 Novice/imgui.ini
+External/DirectXTex/lib/
 
 # KamataEngine build output
 KamataEngine/Generated/
