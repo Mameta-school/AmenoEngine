@@ -356,6 +356,7 @@ MigrationBackup/
 .ionide/
 DirectXGame/DirectXGame.exe
 DirectXGame/imgui.ini
+Novice/imgui.ini
 
 # KamataEngine build output
 KamataEngine/Generated/
@@ -365,3 +366,6 @@ KamataEngine/Generated/
 
 *.log
 /logs
+
+*.dmp
+Dumps/
