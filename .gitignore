@@ -357,6 +357,9 @@ MigrationBackup/
 DirectXGame/DirectXGame.exe
 DirectXGame/imgui.ini
 
+# KamataEngine build output
+KamataEngine/Generated/
+
 # DirectXTex Compiled Shaders
 **/DirectXTex/Shaders/Compiled/
 
