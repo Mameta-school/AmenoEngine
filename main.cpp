@@ -405,6 +405,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ループ終了
 	Log(logStream, "End game loop");
 
+	// 解放処理
 	CloseHandle(fenceEvent);
 	fence->Release();
 	rtvDescriptorHeap->Release();
@@ -420,7 +421,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	#ifdef _DEBUG
 	debugController->Release();
 	#endif
-	CloseWindow(hwnd);
+	DestroyWindow(hwnd);
 
 	// リソースリークチェック
 	IDXGIDebug1* debug;
