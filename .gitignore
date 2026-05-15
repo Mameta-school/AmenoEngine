@@ -370,3 +370,5 @@ KamataEngine/Generated/
 
 *.dmp
 Dumps/
+
+imgui.ini
