@@ -1,10 +1,13 @@
 #pragma once
 #include <cmath>
 
+struct Vector2 { float x, y; };
 struct Vector3 { float x, y, z; };
 struct Vector4 { float x, y, z, w; };
 struct Matrix4x4 { float m[4][4]; };
 struct Transform { Vector3 scale, rotate, translate; };
+struct VertexData { Vector4 position; Vector2 texcoord; };
+
 
 Matrix4x4 MakeIdentity4x4();
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
