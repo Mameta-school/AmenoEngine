@@ -710,14 +710,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
 
-	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * 6);
+	const uint32_t kSubdivision = 16;
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * kSubdivision * kSubdivision * 6);
 
 	// 頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 	// リソースの先頭のアドレスから使う
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
 	// 使用するリソースのサイズは頂点3つ分のサイズ
-	vertexBufferView.SizeInBytes = sizeof(VertexData) * 6;
+	vertexBufferView.SizeInBytes = sizeof(VertexData) * kSubdivision * kSubdivision * 6;
 	// 1頂点当たりのサイズ
 	vertexBufferView.StrideInBytes = sizeof(VertexData);
 
@@ -792,12 +793,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
 	*wvpData = MakeIdentity4x4();
 
-	// 2個めの三角形
-	ID3D12Resource* wvpResource2 = CreateBufferResource(device, sizeof(Matrix4x4));
-	Matrix4x4* wvpData2 = nullptr;
-	wvpResource2->Map(0, nullptr, reinterpret_cast<void**>(&wvpData2));
-	*wvpData2 = MakeIdentity4x4();
-
 	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
 	// データを書き込む
@@ -827,7 +822,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// Transformの変数を作る
 	Transform transform{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
-	Transform transform2{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 	Transform transformSprite{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 	Transform cameraTransform{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -5.0f} };
 
@@ -901,6 +895,61 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	bool useMonsterBall = false;
 
+	const float kPi = 3.14159265358979323846f;
+	// 経度分割1つ分の角度
+	const float kLonEvery = kPi * 2.0f / float(kSubdivision);
+	// 緯度分割1つ分の角度
+	const float kLatEvery = kPi / float(kSubdivision);
+	// 緯度方向に分割
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = -kPi / 2.0f + kLatEvery * latIndex;
+		// 経度の方向に分割しながら線を描く
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+			float lon = lonIndex * kLonEvery;
+
+			float u = float(lonIndex) / float(kSubdivision);
+			float v = 1.0f - float(latIndex) / float(kSubdivision);
+
+			// 頂点a（左下）
+			vertexData[start].position.x = cos(lat) * cos(lon);
+			vertexData[start].position.y = sin(lat);
+			vertexData[start].position.z = cos(lat) * sin(lon);
+			vertexData[start].position.w = 1.0f;
+			vertexData[start].texcoord = { u, v + 1.0f / float(kSubdivision) };
+
+			// 頂点b（左上）
+			vertexData[start + 1].position.x = cos(lat + kLatEvery) * cos(lon);
+			vertexData[start + 1].position.y = sin(lat + kLatEvery);
+			vertexData[start + 1].position.z = cos(lat + kLatEvery) * sin(lon);
+			vertexData[start + 1].position.w = 1.0f;
+			vertexData[start + 1].texcoord = { u, v };
+
+			// 頂点c（右下）
+			vertexData[start + 2].position.x = cos(lat) * cos(lon + kLonEvery);
+			vertexData[start + 2].position.y = sin(lat);
+			vertexData[start + 2].position.z = cos(lat) * sin(lon + kLonEvery);
+			vertexData[start + 2].position.w = 1.0f;
+			vertexData[start + 2].texcoord = { u + 1.0f / float(kSubdivision), v + 1.0f / float(kSubdivision) };
+
+			// 頂点b（左上）※2枚目の三角形
+			vertexData[start + 3].position = vertexData[start + 1].position;
+			vertexData[start + 3].texcoord = vertexData[start + 1].texcoord;
+
+			// 頂点d（右上）
+			vertexData[start + 4].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
+			vertexData[start + 4].position.y = sin(lat + kLatEvery);
+			vertexData[start + 4].position.z = cos(lat + kLatEvery) * sin(lon + kLonEvery);
+			vertexData[start + 4].position.w = 1.0f;
+			vertexData[start + 4].texcoord = { u + 1.0f / float(kSubdivision), v };
+
+			// 頂点c（右下）※2枚目の三角形
+			vertexData[start + 5].position = vertexData[start + 2].position;
+			vertexData[start + 5].texcoord = vertexData[start + 2].texcoord;
+		}
+	}
+
+
 #ifdef USE_IMGUI
 	// ImGuiの初期化。詳細はさして重要ではないので解説は省略する。
 	// こういうもんである
@@ -936,13 +985,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			ImGui::NewFrame();
 #endif
 			// ゲームの更新処理
+			transform.rotate.y += 0.01f;
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			
 			// WVPMatrixを作る
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			*wvpData = worldViewProjectionMatrix;
-
-			Matrix4x4 worldMatrix2 = MakeAffineMatrix(transform2.scale, transform2.rotate, transform2.translate);
-			*wvpData2 = Multiply(worldMatrix2, Multiply(viewMatrix, projectionMatrix));
 
 			// Spriteの更新
 			worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -950,16 +998,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 #ifdef USE_IMGUI
 			ImGui::Begin("Settings");
-			if (ImGui::CollapsingHeader("Triangle", ImGuiTreeNodeFlags_DefaultOpen)) {
+			if (ImGui::CollapsingHeader("Sphere", ImGuiTreeNodeFlags_DefaultOpen)) {
 				ImGui::DragFloat3("Translate", &transform.translate.x, 0.01f);
-				ImGui::DragFloat3("Rotate", &transform.rotate.x, 0.01f);
-				ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f);
-			}
-
-			if (ImGui::CollapsingHeader("Triangle 2")) {
-				ImGui::DragFloat3("Translate##2", &transform2.translate.x, 0.01f);
-				ImGui::DragFloat3("Rotate##2", &transform2.rotate.x, 0.01f);
-				ImGui::DragFloat3("Scale##2", &transform2.scale.x, 0.01f);
 			}
 
 			if (ImGui::CollapsingHeader("Sprite")) {
@@ -1026,12 +1066,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			// SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
-			// 描画！(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(3, 1, 0, 0);
-
-			// 2個めの三角形
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
-			commandList->DrawInstanced(3, 1, 3, 0);
+			// 描画！(DrawCall/ドローコール)
+			commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
 
 			// Spriteの描画。変更が必要なものだけ変更する
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
@@ -1103,7 +1139,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	textureResource2->Release();
 	materialResource->Release();
 	wvpResource->Release();
-	wvpResource2->Release();
 	transformationMatrixResourceSprite->Release();
 	vertexResource->Release();
 	vertexResourceSprite->Release();
