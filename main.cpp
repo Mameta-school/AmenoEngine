@@ -38,6 +38,12 @@
 #include <xaudio2.h>
 #pragma comment(lib, "xaudio2.lib")
 
+#define DIRECTINPUT_VERSION 0x0800	// DirectInputのバージョン指定
+#include <dinput.h>
+
+#pragma comment(lib, "dinput8.lib")
+#pragma comment(lib, "dxguid.lib")
+
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
@@ -819,6 +825,28 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// 音声読み込み
 	SoundData soundData1 = audio.LoadWave("Resources/Alarm01.wav");
 
+	// DirectInputの初期化
+	IDirectInput8* directInput = nullptr;
+	hr = DirectInput8Create(
+		wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr
+	);
+	assert(SUCCEEDED(hr));
+
+	// キーボードデバイスの生成
+	IDirectInputDevice8* keyboard = nullptr;
+	hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+	assert(SUCCEEDED(hr));
+
+	// 入力データ形式のセット
+	hr = keyboard->SetDataFormat(&c_dfDIKeyboard);	// 標準形式
+	assert(SUCCEEDED(hr));
+
+	// 排他制御レベルのセット
+	hr = keyboard->SetCooperativeLevel(
+		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY
+	);
+	assert(SUCCEEDED(hr));
+
 	// RTV用のヒープでディスクリプタの数は2。RTVはShader内で触るものではないので、ShaderVisibleはfalse
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	// SRV用のヒープでディスクリプタの数は128。SRVはshader内で触るものなので、ShaderVisibleはtrue
@@ -1263,6 +1291,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 #endif
 			// ゲームの更新処理
 
+			// キーボード情報の取得開始
+			keyboard->Acquire();
+			BYTE key[256] = {};
+			keyboard->GetDeviceState(sizeof(key), key);
+
+			// 数字の0キーが押されていたら
+			if (key[DIK_0]) {
+				OutputDebugStringA("HIT 0\n"); // 出力ウィンドウに「Hit 0」と表示
+			}
+
 			// スペースキーが押されたら音を再生
 			if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
 				audio.PlayWave(soundData1);
@@ -1443,7 +1481,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	audio.Unload(&soundData1);
 	// XAudio2解放
 	audio.Finalize();
-
+	
 	CoUninitialize();
 
 #ifdef USE_IMGUI
