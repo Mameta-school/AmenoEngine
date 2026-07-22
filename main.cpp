@@ -5,6 +5,7 @@
 #include <strsafe.h>
 #include <vector>
 #include "Math.h"
+#include "DebugCamera.h"
 
 // ファイルやディレクトリに関する操作を行うライブラリ
 #include <filesystem>
@@ -1170,6 +1171,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	Transform cameraTransform{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -5.0f} };
 	Transform uvTransformSprite{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 
+	// デバッグカメラ
+	DebugCamera debugCamera;
+	debugCamera.Initialize(float(kClientWidth) / float(kClientHeight));
+
 	Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 	Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 	Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
@@ -1305,11 +1310,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
 				audio.PlayWave(soundData1);
 			}
+
+			// デバッグカメラの更新
+			debugCamera.Update(key);
+
 			//transform.rotate.y += 0.01f;
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
 			// WVPMatrixを作る
-			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(debugCamera.GetViewMatrix(), debugCamera.GetProjectionMatrix()));
 			wvpData->WVP = worldViewProjectionMatrix;
 			wvpData->World = worldMatrix;
 
