@@ -15,6 +15,8 @@ struct Material { Vector4 color; int32_t enableLighting; float padding[3]; Matri
 struct TransformationMatrix { Matrix4x4 WVP; Matrix4x4 World; };
 struct DirectionalLight { Vector4 color; Vector3 direction; float intensity; };
 
+constexpr float kPi = 3.14159265358979323846f;
+
 Matrix4x4 MakeIdentity4x4();
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
 Matrix4x4 Inverse(const Matrix4x4& m);

@@ -610,6 +610,57 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 	return modelData;
 }
 
+// 球の頂点データを生成する
+ModelData CreateSphereModel() {
+	ModelData modelData;
+	const uint32_t kSubdivision = 16;
+	uint32_t vertexCount = kSubdivision * kSubdivision * 6;
+	modelData.vertices.resize(vertexCount);
+
+	const float kLonEvery = 2.0f * kPi / float(kSubdivision);
+	const float kLatEvery = kPi / float(kSubdivision);
+
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = -kPi / 2.0f + kLatEvery * latIndex;
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lon = lonIndex * kLonEvery;
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+
+			float nextLat = lat + kLatEvery;
+			float nextLon = lon + kLonEvery;
+
+			Vector4 posA = { std::cos(lat) * std::cos(lon), std::sin(lat), std::cos(lat) * std::sin(lon), 1.0f };
+			Vector4 posB = { std::cos(nextLat) * std::cos(lon), std::sin(nextLat), std::cos(nextLat) * std::sin(lon), 1.0f };
+			Vector4 posC = { std::cos(lat) * std::cos(nextLon), std::sin(lat), std::cos(lat) * std::sin(nextLon), 1.0f };
+			Vector4 posD = { std::cos(nextLat) * std::cos(nextLon), std::sin(nextLat), std::cos(nextLat) * std::sin(nextLon), 1.0f };
+
+			float u0 = float(lonIndex) / float(kSubdivision);
+			float u1 = float(lonIndex + 1) / float(kSubdivision);
+			float v0 = 1.0f - float(latIndex) / float(kSubdivision);
+			float v1 = 1.0f - float(latIndex + 1) / float(kSubdivision);
+
+			Vector2 uvA = { u0, v0 };
+			Vector2 uvB = { u0, v1 };
+			Vector2 uvC = { u1, v0 };
+			Vector2 uvD = { u1, v1 };
+
+			Vector3 normA = { posA.x, posA.y, posA.z };
+			Vector3 normB = { posB.x, posB.y, posB.z };
+			Vector3 normC = { posC.x, posC.y, posC.z };
+			Vector3 normD = { posD.x, posD.y, posD.z };
+
+			modelData.vertices[start + 0] = { posA, uvA, normA };
+			modelData.vertices[start + 1] = { posB, uvB, normB };
+			modelData.vertices[start + 2] = { posC, uvC, normC };
+
+			modelData.vertices[start + 3] = { posC, uvC, normC };
+			modelData.vertices[start + 4] = { posB, uvB, normB };
+			modelData.vertices[start + 5] = { posD, uvD, normD };
+		}
+	}
+	return modelData;
+}
+
 static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 	// 時刻を取得して、時刻を名前に入れたファイルを作成。Dumpsディレクトリ以下に出力
 	SYSTEMTIME time;
@@ -1128,14 +1179,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 	directionalLightData->intensity = 1.0f;
 
-	// WVP用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource = CreateBufferResource(device, sizeof(TransformationMatrix));
-	// データを書き込む
-	TransformationMatrix* wvpData = nullptr;
-	// 書き込むためのアドレスを取得
-	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
-	wvpData->WVP = MakeIdentity4x4();
-	wvpData->World = MakeIdentity4x4();
+	// 球体用
+	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceSphere = CreateBufferResource(device, sizeof(TransformationMatrix));
+	TransformationMatrix* wvpDataSphere = nullptr;
+	wvpResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataSphere));
+	wvpDataSphere->WVP = MakeIdentity4x4();
+	wvpDataSphere->World = MakeIdentity4x4();
+
+	// 平面用
+	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourcePlane = CreateBufferResource(device, sizeof(TransformationMatrix));
+	TransformationMatrix* wvpDataPlane = nullptr;
+	wvpResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataPlane));
+	wvpDataPlane->WVP = MakeIdentity4x4();
+	wvpDataPlane->World = MakeIdentity4x4();
 
 	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(TransformationMatrix));
@@ -1166,7 +1222,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	scissorRect.bottom = kClientHeight;
 
 	// Transformの変数を作る
-	Transform transform{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
+	Transform transformSphere{ {0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f} };
+	Transform transformPlane{ {0.5f, 0.5f, 0.5f}, {0.0f, 3.141592f, 0.0f}, { 1.0f, 0.0f, 0.0f} };
 	Transform transformSprite{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 	Transform cameraTransform{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -5.0f} };
 	Transform uvTransformSprite{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
@@ -1243,22 +1300,37 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	bool useMonsterBall = false;
 
-	// モデル読み込み
-	ModelData modelData = LoadObjFile("resources", "plane.obj");
-	// 頂点リソースを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
-	// 頂点バッファビューを作成する
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();				// リソースの先頭のアドレスから使う
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());	// 使用するリソースのサイズは頂点のサイズ
-	vertexBufferView.StrideInBytes = sizeof(VertexData);									// 1頂点あたりのサイズ
+	// ==========================================
+	// 1. 球体 (Sphere) のモデル・頂点バッファ準備
+	// ==========================================
+	ModelData sphereModelData = CreateSphereModel();
 
-	// 頂点リソースにデータを書き込む
-	VertexData* vertexData = nullptr;
-	// 書き込むためのアドレス取得
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	// 頂点データをリソースにコピー
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device, sizeof(VertexData) * sphereModelData.vertices.size());
+
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
+	vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
+	vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereModelData.vertices.size());
+	vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
+
+	VertexData* vertexDataSphere = nullptr;
+	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
+	std::memcpy(vertexDataSphere, sphereModelData.vertices.data(), sizeof(VertexData)* sphereModelData.vertices.size());
+
+	// ==========================================
+	// 2. 平面 (Plane) のモデル・頂点バッファ準備
+	// ==========================================
+	ModelData modelData = LoadObjFile("resources", "plane.obj");
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
+
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane{};
+	vertexBufferViewPlane.BufferLocation = vertexResourcePlane->GetGPUVirtualAddress();
+	vertexBufferViewPlane.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+	vertexBufferViewPlane.StrideInBytes = sizeof(VertexData);
+
+	VertexData* vertexDataPlane = nullptr;
+	vertexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataPlane));
+	std::memcpy(vertexDataPlane, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
 
 #ifdef USE_IMGUI
 	// ImGuiの初期化。詳細はさして重要ではないので解説は省略する。
@@ -1314,18 +1386,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			// デバッグカメラの更新
 			debugCamera.Update(key);
 
-			//transform.rotate.y += 0.01f;
-			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			// 球体の行列更新
+			Matrix4x4 worldMatrixSphere = MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
+			wvpDataSphere->WVP = Multiply(worldMatrixSphere, Multiply(viewMatrix, projectionMatrix));
+			wvpDataSphere->World = worldMatrixSphere;
 
-			// WVPMatrixを作る
-			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(debugCamera.GetViewMatrix(), debugCamera.GetProjectionMatrix()));
-			wvpData->WVP = worldViewProjectionMatrix;
-			wvpData->World = worldMatrix;
-
+			// 平面の行列更新
+			Matrix4x4 worldMatrixPlane = MakeAffineMatrix(transformPlane.scale, transformPlane.rotate, transformPlane.translate);
+			wvpDataPlane->WVP = Multiply(worldMatrixPlane, Multiply(viewMatrix, projectionMatrix));
+			wvpDataPlane->World = worldMatrixPlane;
 			// Spriteの更新
 			worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
 			transformationMatrixDataSprite->WVP = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
-			transformationMatrixDataSprite->World = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+			transformationMatrixDataSprite->World = worldMatrixSprite;
 
 			// UVTransformの更新
 			Matrix4x4 uvTransformMatrix = MakeAffineMatrix(uvTransformSprite.scale, uvTransformSprite.rotate, uvTransformSprite.translate);
@@ -1333,20 +1406,23 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 #ifdef USE_IMGUI
 			ImGui::Begin("Settings");
-			if (ImGui::CollapsingHeader("Sphere", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::DragFloat3("Translate", &transform.translate.x, 0.01f);
-				ImGui::SliderAngle("Rotate", &transform.rotate.y);
+			if (ImGui::CollapsingHeader("Sphere Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::DragFloat3("Scale##Sphere", &transformSphere.scale.x, 0.01f);
+				ImGui::DragFloat3("Translate##Sphere", &transformSphere.translate.x, 0.01f);
+				ImGui::DragFloat3("Rotate##Sphere", &transformSphere.rotate.x, 0.01f);
 			}
 
-			//if (ImGui::CollapsingHeader("Sprite")) {
-			//	ImGui::DragFloat3("Translate##Sprite", &transformSprite.translate.x, 1.0f);
-			//	ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			//	ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			//	ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
-			//}
+			if (ImGui::CollapsingHeader("Plane Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::DragFloat3("Scale##Plane", &transformPlane.scale.x, 0.01f);
+				ImGui::DragFloat3("Translate##Plane", &transformPlane.translate.x, 0.01f);
+				ImGui::DragFloat3("Rotate##Plane", &transformPlane.rotate.x, 0.01f);
+			}
 
 			if (ImGui::CollapsingHeader("Material")) {
 				ImGui::ColorEdit4("Color", &materialData->color.x);
+
+				const char* lightingItems[] = { "None", "Lambert", "Half Lambert" };
+				ImGui::Combo("Lighting", &materialData->enableLighting, lightingItems, IM_ARRAYSIZE(lightingItems));
 			}
 
 			if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -1410,19 +1486,27 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			// RootSignatureを設定。PSOに設定しているけど別途設定が必要
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());		// PS0を設定
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);	// VBVを設定
 			// 形状を設定。PS0に設定しているものとはまた別。同じものを設定すると考えておけば良い
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			// マテリアルCBufferの場所を設定
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			// DirectionalLightのCBufferの場所を設定
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-			// wvp用のCBufferの場所を設定
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			// SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
-			// 描画！(DrawCall/ドローコール)
+			// ------------------------------------------
+			//  球体 (Sphere) の描画
+			// ------------------------------------------
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress());
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+			commandList->DrawInstanced(UINT(sphereModelData.vertices.size()), 1, 0, 0);
+
+			// ------------------------------------------
+			//  平面 (Plane) の描画
+			// ------------------------------------------
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResourcePlane->GetGPUVirtualAddress());
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 			// Spriteを常にuvCheckerにする
@@ -1437,7 +1521,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 			// 描画！(DrawCall/ドローコール)6個のインデックスを使用し1つのインスタンスを描画。その他は当面0で良い
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 #ifdef USE_IMGUI
 			// 実際のcommandListのImGuiの描画コマンドを積む
