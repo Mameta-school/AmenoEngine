@@ -105,8 +105,8 @@ static void Run() {
 	ID3D12Device* device = dxCommon.GetDevice();
 	ID3D12GraphicsCommandList* commandList = dxCommon.GetCommandList();
 
-	Input input;
-	input.Initialize(winApp.GetHInstance(), winApp.GetHwnd());
+	Input* input = new Input();
+	input->Initialize(winApp.GetHInstance(), winApp.GetHwnd());
 
 	Audio audio;
 	audio.Initialize();
@@ -245,10 +245,10 @@ static void Run() {
 		imGui.Begin();
 
 		// ---------- 更新処理 ----------
-		input.Update();
+		input->Update();
 
 		// 数字の0キーが押されていたら
-		if (input.PushKey(DIK_0)) {
+		if (input->PushKey(DIK_0)) {
 			OutputDebugStringA("HIT 0\n");
 		}
 
@@ -258,7 +258,7 @@ static void Run() {
 		}
 
 		// デバッグカメラの更新
-		debugCamera.Update(input.GetKeys());
+		debugCamera.Update(input->GetKeys());
 		const Matrix4x4& view = useDebugCamera ? debugCamera.GetViewMatrix() : viewMatrix;
 		const Matrix4x4& proj = useDebugCamera ? debugCamera.GetProjectionMatrix() : projectionMatrix;
 
@@ -387,6 +387,9 @@ static void Run() {
 	audio.Finalize();
 	dxCommon.Finalize();
 	winApp.Finalize();
+
+	delete input;
+	input = nullptr;
 }
 
 // Windowsアプリでのエントリーポイント(main関数)

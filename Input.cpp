@@ -15,7 +15,7 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
 	hr = directInput_->CreateDevice(GUID_SysKeyboard, &keyboard_, nullptr);
 	assert(SUCCEEDED(hr));
 
-	// 入力データ形式のセット(標準形式)
+	// 入力データ形式のセット
 	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(hr));
 
