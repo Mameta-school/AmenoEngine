@@ -12,7 +12,8 @@ public:
 	void Update();
 
 	// キーが押されているか
-	bool PushKey(BYTE keyNumber) const { return key_[keyNumber] != 0; }
+	bool PushKey(BYTE keyNumber);
+	bool TriggerKey(BYTE keyNumber);
 	// 全キーの状態
 	const BYTE* GetKeys() const { return key_; }
 
@@ -20,4 +21,5 @@ private:
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput_;
 	Microsoft::WRL::ComPtr<IDirectInputDevice8> keyboard_;
 	BYTE key_[256] = {};
+	BYTE keyPre_[256] = {};
 };

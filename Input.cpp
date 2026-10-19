@@ -25,7 +25,27 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
 }
 
 void Input::Update() {
+	// 前回のキー入力を保存
+	memcpy(keyPre_, key_, sizeof(key_));
 	// キーボード情報の取得開始
 	keyboard_->Acquire();
 	keyboard_->GetDeviceState(sizeof(key_), key_);
+}
+
+bool Input::PushKey(BYTE keyNumber) {
+	// 指定キーを推してtrueを返す
+	if (key_[keyNumber]) {
+		return true;
+	}
+	// そうでなければfalseを返す
+	return false;
+}
+
+bool Input::TriggerKey(BYTE keyNumber) {
+	// 今フレームは推されていていればtrueを返す
+	if (key_[keyNumber] && !keyPre_[keyNumber]) {
+		return true;
+	}
+	// そうでなければfalseを返す
+	return false;
 }

@@ -248,7 +248,7 @@ static void Run() {
 		input->Update();
 
 		// 数字の0キーが押されていたら
-		if (input->PushKey(DIK_0)) {
+		if (input->TriggerKey(DIK_0)) {
 			OutputDebugStringA("HIT 0\n");
 		}
 
