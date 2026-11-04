@@ -14,6 +14,7 @@ public:
 	// キーが押されているか
 	bool PushKey(BYTE keyNumber);
 	bool TriggerKey(BYTE keyNumber);
+	bool ReleaseKey(BYTE keyNumber);
 	// 全キーの状態
 	const BYTE* GetKeys() const { return key_; }
 

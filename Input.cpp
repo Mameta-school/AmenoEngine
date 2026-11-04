@@ -42,8 +42,17 @@ bool Input::PushKey(BYTE keyNumber) {
 }
 
 bool Input::TriggerKey(BYTE keyNumber) {
-	// 今フレームは推されていていればtrueを返す
+	// 今フレームは押されていていればtrueを返す
 	if (key_[keyNumber] && !keyPre_[keyNumber]) {
+		return true;
+	}
+	// そうでなければfalseを返す
+	return false;
+}
+
+bool Input::ReleaseKey(BYTE keyNumber) {
+	// 今フレームが押されていなければtrueを返す
+	if (!key_[keyNumber] && keyPre_[keyNumber]) {
 		return true;
 	}
 	// そうでなければfalseを返す
