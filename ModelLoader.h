@@ -8,3 +8,4 @@ MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const st
 ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 // 球の頂点データを生成する
 ModelData CreateSphereModel();
+ModelData CreatePlaneModel();
