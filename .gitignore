@@ -370,3 +370,7 @@ Dumps/
 imgui.ini
 
 !resources/**/*.obj
+
+# Build results
+...
+generated/
