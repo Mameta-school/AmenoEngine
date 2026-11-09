@@ -107,7 +107,7 @@ static void Run() {
 	ID3D12GraphicsCommandList* commandList = dxCommon.GetCommandList();
 
 	Input* input = new Input();
-	input->Initialize(winApp.GetHInstance(), winApp.GetHwnd());
+	input->Initialize(&winApp);
 
 	Audio audio;
 	audio.Initialize();
