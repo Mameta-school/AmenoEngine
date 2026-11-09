@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "externals/DirectXTex/DirectXTex.h"
-#include "Math.h"	// VertexData
+#include "MathUtility.h"	// VertexData
 
 // ---- バッファ ----
 // Uploadヒープ上のバッファリソースを作る

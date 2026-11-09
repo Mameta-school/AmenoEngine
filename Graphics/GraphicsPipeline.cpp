@@ -1,4 +1,4 @@
-#include "ParticlePipeline.h"
+#include "GraphicsPipeline.h"
 #include "DirectXCommon.h"
 #include "Logger.h"
 #include <cassert>
@@ -57,18 +57,18 @@ namespace {
 	}
 }
 
-void ParticlePipeline::Initialize(ID3D12Device* device, ShaderCompiler* shaderCompiler) {
+void GraphicsPipeline::Initialize(ID3D12Device* device, ShaderCompiler* shaderCompiler) {
 	CreateRootSignature(device);
 	CreatePipelineStates(device, shaderCompiler);
 }
 
-void ParticlePipeline::SetPipeline(ID3D12GraphicsCommandList* commandList, BlendMode blendMode) const {
+void GraphicsPipeline::SetPipeline(ID3D12GraphicsCommandList* commandList, BlendMode blendMode) const {
 	// RootSignatureを設定。PSOに設定しているけど別途設定が必要
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineStates_[blendMode].Get());
 }
 
-void ParticlePipeline::CreateRootSignature(ID3D12Device* device) {
+void GraphicsPipeline::CreateRootSignature(ID3D12Device* device) {
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
@@ -78,16 +78,9 @@ void ParticlePipeline::CreateRootSignature(ID3D12Device* device) {
 	rootParameters[kRootParamMaterial].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[kRootParamMaterial].Descriptor.ShaderRegister = 0;
 
-	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
-	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
-	descriptorRangeForInstancing[0].NumDescriptors = 1;
-	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParameters[kRootParamTransformation].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[kRootParamTransformation].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[kRootParamTransformation].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParameters[kRootParamTransformation].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	rootParameters[kRootParamTransformation].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+	rootParameters[kRootParamTransformation].Descriptor.ShaderRegister = 0;
 
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;								// 0から始まる
@@ -135,7 +128,7 @@ void ParticlePipeline::CreateRootSignature(ID3D12Device* device) {
 	assert(SUCCEEDED(hr));
 }
 
-void ParticlePipeline::CreatePipelineStates(ID3D12Device* device, ShaderCompiler* shaderCompiler) {
+void GraphicsPipeline::CreatePipelineStates(ID3D12Device* device, ShaderCompiler* shaderCompiler) {
 	// InputLayout
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
@@ -156,7 +149,7 @@ void ParticlePipeline::CreatePipelineStates(ID3D12Device* device, ShaderCompiler
 
 	// RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;		// 裏面を表示しない
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;	// 三角形の中を塗りつぶす
 
 	// DepthStencilStateの設定
@@ -166,9 +159,9 @@ void ParticlePipeline::CreatePipelineStates(ID3D12Device* device, ShaderCompiler
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;		// 近ければ描画される
 
 	// Shaderをコンパイルする
-	ComPtr<IDxcBlob> vertexShaderBlob = shaderCompiler->Compile(L"Particle.VS.hlsl", L"vs_6_0");
+	ComPtr<IDxcBlob> vertexShaderBlob = shaderCompiler->Compile(L"resources/Shaders/Object3d.VS.hlsl", L"vs_6_0");
 	assert(vertexShaderBlob != nullptr);
-	ComPtr<IDxcBlob> pixelShaderBlob = shaderCompiler->Compile(L"Particle.PS.hlsl", L"ps_6_0");
+	ComPtr<IDxcBlob> pixelShaderBlob = shaderCompiler->Compile(L"resources/Shaders/Object3d.PS.hlsl", L"ps_6_0");
 	assert(pixelShaderBlob != nullptr);
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};

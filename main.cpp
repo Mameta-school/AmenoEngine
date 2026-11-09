@@ -10,7 +10,7 @@
 #include <dxgidebug.h>
 #pragma comment(lib, "dxguid.lib")
 
-#include "Math.h"
+#include "MathUtility.h"
 #include "DebugCamera.h"
 #include "Logger.h"
 #include "WinApp.h"

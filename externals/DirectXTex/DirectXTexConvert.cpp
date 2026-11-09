@@ -178,7 +178,7 @@ namespace
         fi.f = maxColor;
         fi.i += 0x00004000; // round up leaving 9 bits in fraction (including assumed 1)
 
-        // Fix applied from DirectXMath 3.10
+        // Fix applied from DirectXMathUtility 3.10
         uint32_t exp = fi.i >> 23;
         pDestination->e = exp - 0x6f;
 

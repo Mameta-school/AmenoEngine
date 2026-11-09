@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "Math.h"	// ModelData, MaterialData, VertexData など
+#include "MathUtility.h"	// ModelData, MaterialData, VertexData など
 
 // .mtlファイルを読む
 MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
