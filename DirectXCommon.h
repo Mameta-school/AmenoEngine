@@ -4,6 +4,7 @@
 #include <dxgi1_6.h>
 #include <wrl.h>
 #include <cstdint>
+#include <chrono>
 #include "WinApp.h"
 
 // DirectX12の土台(デバイス・コマンド・スワップチェーン・描画の前後処理)を担当するクラス
@@ -41,6 +42,9 @@ private:
 	void InitDepthStencilView();
 	void InitFence();
 	void InitViewport();
+	std::chrono::steady_clock::time_point reference_;
+	void InitializeFixFPS();
+	void UpdateFixFPS();
 
 	// GPUの処理完了を待つ
 	void WaitForGPU();

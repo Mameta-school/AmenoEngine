@@ -1,5 +1,8 @@
 #include "WinApp.h"
 
+#include <timeapi.h>
+#pragma comment(lib, "winmm.lib")
+
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -26,6 +29,9 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 }
 
 void WinApp::Initialize() {
+	// システムタイマーの分解能を上げる
+	timeBeginPeriod(1);
+
 	// ウィンドウプロシージャ
 	wc_.lpfnWndProc = WindowProc;
 	// ウィンドウクラス名
