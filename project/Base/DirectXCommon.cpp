@@ -74,6 +74,7 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	InitDepthStencilView();
 	InitFence();
 	InitViewport();
+	InitializeFixFPS();
 }
 
 void DirectXCommon::Finalize() {
@@ -318,6 +319,8 @@ void DirectXCommon::PostDraw() {
 	// GPUの完了を待ってから、次のフレーム用にコマンドリストを準備
 	WaitForGPU();
 	ResetCommandList();
+
+	UpdateFixFPS();
 }
 
 void DirectXCommon::ExecuteCommandsAndWait() {
