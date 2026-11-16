@@ -19,10 +19,10 @@
 #include "Audio.h"
 #include "ShaderCompiler.h"
 #include "GraphicsPipeline.h"
-#include "ParticlePipeline.h"
 #include "ImGuiManager.h"
 #include "ResourceUtility.h"
 #include "ModelLoader.h"
+#include "ParticleSystem.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -116,11 +116,11 @@ static void Run() {
 	ShaderCompiler shaderCompiler;
 	shaderCompiler.Initialize();
 
+	ParticleSystem particleSystem;
+	particleSystem.Initialize(&dxCommon, &shaderCompiler, 3);
+
 	GraphicsPipeline pipeline;
 	pipeline.Initialize(device, &shaderCompiler);
-
-	ParticlePipeline particlePipeline;
-	particlePipeline.Initialize(device, &shaderCompiler);
 
 	// ---------- モデル(頂点バッファ) ----------
 	// 球体
@@ -132,10 +132,7 @@ static void Run() {
 	// フェンス
 	ModelData fenceModelData = LoadObjFile("resources", "fence.obj");
 	VertexBuffer fenceVB = CreateVertexBuffer(device, fenceModelData.vertices);
-	// パーティクル
-	ModelData particleModelData = CreatePlaneModel();
-	VertexBuffer particleVB = CreateVertexBuffer(device, particleModelData.vertices);
-
+	
 	// スプライト
 	std::vector<VertexData> spriteVertices(4);
 	spriteVertices[0].position = { 0.0f, 360.0f, 0.0f, 1.0f };
@@ -172,17 +169,6 @@ static void Run() {
 	material.data->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	material.data->enableLighting = true;
 	material.data->uvTransform = MakeIdentity4x4();
-
-	// マテリアル(パーティクル用)
-	const uint32_t kNumParticles = 10;
-	Transform particleTransforms[kNumParticles];
-	ConstantBuffer<TransformationMatrix> particleWvp[kNumParticles];
-	for (uint32_t i = 0; i < kNumParticles; ++i) {
-		particleTransforms[i].scale = { 1.0f, 1.0f, 1.0f };
-		particleTransforms[i].rotate = { 0.0f, 0.0f, 0.0f };
-		particleTransforms[i].translate = { i * 0.1f, i * 0.1f, i * 0.1f };
-		particleWvp[i] = CreateConstantBuffer<TransformationMatrix>(device);
-	}
 
 	// マテリアル(スプライト用)
 	ConstantBuffer<Material> materialSprite = CreateConstantBuffer<Material>(device);
@@ -242,39 +228,6 @@ static void Run() {
 	// 転送コマンドを実行して完了を待つ
 	dxCommon.ExecuteCommandsAndWait();
 
-	const uint32_t kNumInstance = 10;
-
-	// リソース作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =
-		CreateBufferResource(device, sizeof(TransformationMatrix) * kNumInstance);
-	TransformationMatrix* instancingData = nullptr;
-	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
-		instancingData[index].WVP = MakeIdentity4x4();
-		instancingData[index].World = MakeIdentity4x4();
-	}
-
-	// SRV作成
-	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
-	instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	instancingSrvDesc.Buffer.FirstElement = 0;
-	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	instancingSrvDesc.Buffer.NumElements = kNumInstance;
-	instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
-	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = dxCommon.GetSrvCPUHandle(3);
-	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = dxCommon.GetSrvGPUHandle(3);
-	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
-
-	// Transform
-	Transform transforms[kNumInstance];
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
-		transforms[index].scale = { 1.0f, 1.0f, 1.0f };
-		transforms[index].rotate = { 0.0f, 0.0f, 0.0f };
-		transforms[index].translate = { index * 0.1f, index * 0.1f, index * 0.1f };
-	}
-
 	bool useMonsterBall = false;
 	int currentBlendMode = kBlendModeNormal;
 
@@ -313,13 +266,7 @@ static void Run() {
 		const Matrix4x4& view = useDebugCamera ? debugCamera.GetViewMatrix() : viewMatrix;
 		const Matrix4x4& proj = useDebugCamera ? debugCamera.GetProjectionMatrix() : projectionMatrix;
 
-		Matrix4x4 viewProjectionMatrix = Multiply(view, proj);
-		for (uint32_t index = 0; index < kNumInstance; ++index) {
-			Matrix4x4 worldMatrix =
-				MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
-			instancingData[index].WVP = Multiply(worldMatrix, viewProjectionMatrix);
-			instancingData[index].World = worldMatrix;
-		}
+		particleSystem.Update(view, proj);
 
 		// 球体の行列更新
 		Matrix4x4 worldMatrixSphere = MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
@@ -330,13 +277,6 @@ static void Run() {
 		Matrix4x4 worldMatrixPlane = MakeAffineMatrix(transformPlane.scale, transformPlane.rotate, transformPlane.translate);
 		wvpPlane.data->WVP = Multiply(worldMatrixPlane, Multiply(view, proj));
 		wvpPlane.data->World = worldMatrixPlane;
-
-		// パーティクルの行列更新
-		for (uint32_t i = 0; i < kNumParticles; ++i) {
-			Matrix4x4 world = MakeAffineMatrix(particleTransforms[i].scale, particleTransforms[i].rotate, particleTransforms[i].translate);
-			particleWvp[i].data->WVP = Multiply(world, Multiply(view, proj));
-			particleWvp[i].data->World = world;
-		}
 
 		// スプライトの更新
 		worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -430,22 +370,6 @@ static void Run() {
 		//commandList->DrawInstanced(planeVB.vertexCount, 1, 0, 0);
 
 		// ------------------------------------------
-		//  パーティクル (Particle) の描画
-		// ------------------------------------------
-		particlePipeline.SetPipeline(commandList, static_cast<BlendMode>(currentBlendMode));
-		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		// RootSignatureが切り替わるので、マテリアル・ライト・テクスチャも設定し直す
-		commandList->SetGraphicsRootConstantBufferView(kRootParamMaterial, material.GetGPUAddress());
-		commandList->SetGraphicsRootConstantBufferView(kRootParamDirectionalLight, directionalLight.GetGPUAddress());
-		commandList->SetGraphicsRootDescriptorTable(kRootParamTexture,
-			useMonsterBall ? textureMonsterBall.srvHandleGPU : textureUvChecker.srvHandleGPU);
-		// StructuredBufferのSRVを設定（スライドの SetGraphicsRootDescriptorTable(1, ...) に当たる）
-		commandList->SetGraphicsRootDescriptorTable(kRootParamTransformation, instancingSrvHandleGPU);
-		// 四角形を kNumInstance 個、Instance描画
-		commandList->IASetVertexBuffers(0, 1, &particleVB.view);
-		commandList->DrawInstanced(UINT(particleModelData.vertices.size()), kNumInstance, 0, 0);
-
-		// ------------------------------------------
 		//  スプライト (Sprite) の描画
 		// ------------------------------------------
 		//commandList->SetGraphicsRootDescriptorTable(kRootParamTexture, textureUvChecker.srvHandleGPU);
@@ -454,6 +378,12 @@ static void Run() {
 		//commandList->SetGraphicsRootConstantBufferView(kRootParamTransformation, wvpSprite.GetGPUAddress());
 		//commandList->IASetIndexBuffer(&indexBufferViewSprite);
 		//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+		particleSystem.Draw(
+			static_cast<BlendMode>(currentBlendMode),
+			material.GetGPUAddress(),
+			directionalLight.GetGPUAddress(),
+			useMonsterBall ? textureMonsterBall.srvHandleGPU : textureUvChecker.srvHandleGPU);
 
 		// ImGuiの描画コマンドを積む
 		imGui.Draw(commandList);

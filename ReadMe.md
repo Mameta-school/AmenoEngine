@@ -1,0 +1,1 @@
+[![DebugBuild](https://github.com/Mameta-school/AmenoEngine/actions/workflows/DebugBuild.yml/badge.svg)](https://github.com/Mameta-school/AmenoEngine/actions/workflows/DebugBuild.yml)
