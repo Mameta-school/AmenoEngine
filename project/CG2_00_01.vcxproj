@@ -205,6 +205,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="Graphics\ParticleSystem.cpp" />
+    <ClCompile Include="SpriteCommon.cpp" />
     <ClCompile Include="Utility\Logger.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -284,6 +285,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Graphics\ImGuiManager.h" />
     <ClInclude Include="Input\Input.h" />
     <ClInclude Include="Graphics\ParticleSystem.h" />
+    <ClInclude Include="SpriteCommon.h" />
     <ClInclude Include="Utility\Logger.h" />
     <ClInclude Include="Utility\MathUtility.h" />
     <ClInclude Include="Graphics\ModelLoader.h" />

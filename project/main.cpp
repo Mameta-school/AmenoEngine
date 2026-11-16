@@ -23,6 +23,7 @@
 #include "ResourceUtility.h"
 #include "ModelLoader.h"
 #include "ParticleSystem.h"
+#include "SpriteCommon.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -121,6 +122,9 @@ static void Run() {
 
 	GraphicsPipeline pipeline;
 	pipeline.Initialize(device, &shaderCompiler);
+
+	SpriteCommon spriteCommon;
+	spriteCommon.Initialize(&dxCommon, &shaderCompiler);
 
 	// ---------- モデル(頂点バッファ) ----------
 	// 球体
@@ -344,6 +348,8 @@ static void Run() {
 
 		// ---------- 描画処理 ----------
 		dxCommon.PreDraw();
+
+		spriteCommon.CommonDrawSetting();
 
 		// RootSignature と PSOを設定
 		pipeline.SetPipeline(commandList, static_cast<BlendMode>(currentBlendMode));
